@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consulta de Lista de Precios</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    body { padding: 20px; }
+    .filter-section { margin-bottom: 20px; }
+    .table-responsive { margin-top: 20px; }
+  </style>
+  <!-- Select2 CSS -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+</head>
+<body>
+  <div class="container">
+    <h1 class="text-center">Lista de precios PCR Abril 2025</h1>
+    <div class="filter-section">
+      <form id="filterForm">
+        <!-- Primera fila de dropdowns: 5 columnas -->
+        <div class="form-row">
+          <div class="form-group col-md-2">
+            <label for="filtroCodigoProducto">Código producto</label>
+            <select class="form-control" id="filtroCodigoProducto">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="form-group col-md-2">
+            <label for="filtroIndices">Índices de carga</label>
+            <select class="form-control" id="filtroIndices">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="form-group col-md-2">
+            <label for="filtroMedida">Medida</label>
+            <select class="form-control" id="filtroMedida">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="form-group col-md-2">
+            <label for="filtroMarca">Marca</label>
+            <select class="form-control" id="filtroMarca">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="form-group col-md-2">
+            <label for="filtroDiseno">Diseño</label>
+            <select class="form-control" id="filtroDiseno">
+              <option value="">Todos</option>
+            </select>
+          </div>
+        </div>
+        <!-- Segunda fila de dropdowns: 5 columnas -->
+        <div class="form-row">
+          <div class="form-group col-md-2">
+            <label for="filtroSegmento">Segmento</label>
+            <select class="form-control" id="filtroSegmento">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="form-group col-md-2">
+            <label for="filtroPrecioLista">Precio Lista</label>
+            <select class="form-control" id="filtroPrecioLista">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="form-group col-md-2">
+            <label for="filtroContado">Contado</label>
+            <select class="form-control" id="filtroContado">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="form-group col-md-2">
+            <label for="filtroCosto">Precio DTC</label>
+            <select class="form-control" id="filtroCosto">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="form-group col-md-2">
+            <label for="filtroDescuento">Descuento</label>
+            <select class="form-control" id="filtroDescuento">
+              <option value="">Todos</option>
+            </select>
+          </div>
+        </div>
+        <!-- Botón para consultar -->
+        <div class="form-row">
+          <div class="form-group col-md-2">
+            <button type="submit" class="btn btn-primary btn-block">Consultar</button>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div id="table-container" class="table-responsive">
+      <p class="text-center">Seleccione al menos un filtro para consultar la información.</p>
+    </div>
+  </div>
+  
+  <!-- jQuery y Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <script>
+    let jsonData = [];
+    
+    /* Definición de filtros.
+       Cada objeto contiene:
+         - id: el id del dropdown en el HTML.
+         - display: el nombre que se muestra en el dropdown y en la tabla.
+         - key: la clave real del JSON para esa columna.
+    */
+    const filterColumns = [
+      { id: 'filtroCodigoProducto', display: 'Código producto', key: 'Codigo Producto' },
+      { id: 'filtroIndices', display: 'Índices de carga', key: 'Indices de Cargas y Velocidad' },
+      { id: 'filtroMedida', display: 'Medida', key: 'Medida' },
+      { id: 'filtroMarca', display: 'Marca', key: 'Marca' },
+      { id: 'filtroDiseno', display: 'Diseño', key: 'Diseño' },
+      { id: 'filtroSegmento', display: 'Segmento', key: 'Segmento' },
+      { id: 'filtroPrecioLista', display: 'Precio Lista', key: 'Precio Lista' },
+      { id: 'filtroContado', display: 'Contado', key: 'Contado, Déb. y TC 1 Pago\n-30% (DUNLOP) /         -20% (CORV & CHAO)' },
+      { id: 'filtroCosto', display: 'Precio DTC', key: 'Costo\n(IVA Incluído)' },
+      { id: 'filtroDescuento', display: 'Descuento', key: 'Descuento' }
+    ];
+    
+    // Las columnas que se mostrarán en la tabla (en el orden deseado)
+    const displayColumns = [
+      "Código producto", "Índices de carga", "Medida", "Marca", "Diseño",
+      "Segmento", "Precio Lista", "Contado", "Precio DTC", "Descuento"
+    ];
+    
+    // Objeto de mapeo: relaciona el nombre a mostrar con la clave real en el JSON.
+    const jsonKeyMapping = {};
+    filterColumns.forEach(col => {
+      jsonKeyMapping[col.display] = col.key;
+    });
+    
+    // Función para formatear números como moneda (sin decimales, con "$")
+    function formatCurrency(value) {
+      let number = parseFloat(value);
+      if (isNaN(number)) return value;
+      return "$" + Math.round(number).toLocaleString('es-ES');
+    }
+    
+    // Función para formatear un número como porcentaje (2 decimales)
+    function formatPercentage(value) {
+      let number = parseFloat(value);
+      if (isNaN(number)) return value;
+      return (number * 100).toFixed(2) + '%';
+    }
+    
+    // Cargar el JSON y poblar los dropdowns
+    function loadJSONData() {
+      fetch('Lista_de_precios.json')
+        .then(response => response.json())
+        .then(data => {
+          jsonData = data;
+          console.log("Datos cargados:", jsonData);
+          populateFilters();
+          document.getElementById('table-container').innerHTML =
+            '<p class="text-center">Seleccione al menos un filtro para consultar la información.</p>';
+        })
+        .catch(error => {
+          console.error('Error al cargar el JSON:', error);
+          document.getElementById('table-container').innerHTML = '<p>Error al cargar los datos.</p>';
+        });
+    }
+    
+    // Poblar cada dropdown con los valores únicos extraídos del JSON usando la clave real
+    function populateFilters() {
+      filterColumns.forEach(filtro => {
+        const select = document.getElementById(filtro.id);
+        // Reiniciar dejando la opción "Todos"
+        select.innerHTML = '<option value="">Todos</option>';
+        const valores = new Set();
+        jsonData.forEach(item => {
+          if (item[filtro.key] !== undefined && item[filtro.key] !== null) {
+            valores.add(String(item[filtro.key]).trim());
+          }
+        });
+        console.log(`Valores para ${filtro.display}:`, Array.from(valores));
+        Array.from(valores).sort().forEach(valor => {
+          const option = document.createElement('option');
+          option.value = valor;
+          option.textContent = valor;
+          select.appendChild(option);
+        });
+      });
+    }
+    
+    // Renderizar la tabla usando displayColumns y el mapeo para obtener la clave real del JSON
+    function renderTable(data) {
+      if (data.length === 0) {
+        document.getElementById('table-container').innerHTML =
+          '<p class="text-center">No se encontraron datos con los filtros seleccionados.</p>';
+        return;
+      }
+      let table = '<table class="table table-striped"><thead><tr>';
+      displayColumns.forEach(col => { table += '<th>' + col + '</th>'; });
+      table += '</tr></thead><tbody>';
+      data.forEach(item => {
+        table += '<tr>';
+        displayColumns.forEach(col => {
+          let cell = item[ jsonKeyMapping[col] ];
+          // Formatear las columnas de precio como moneda
+          if (col === 'Precio Lista' || col === 'Contado' || col === 'Precio DTC') {
+            cell = formatCurrency(cell);
+          } else if (col === 'Descuento') {
+            cell = formatPercentage(cell);
+          }
+          table += '<td>' + cell + '</td>';
+        });
+        table += '</tr>';
+      });
+      table += '</tbody></table>';
+      document.getElementById('table-container').innerHTML = table;
+    }
+    
+    // Aplicar los filtros según lo seleccionado en cada dropdown
+    function filterData() {
+      let atLeastOne = false;
+      const filteredData = jsonData.filter(item => {
+        return filterColumns.every(filtro => {
+          const selected = document.getElementById(filtro.id).value;
+          if (selected) atLeastOne = true;
+          return selected ? String(item[filtro.key]).trim().toLowerCase() === selected.trim().toLowerCase() : true;
+        });
+      });
+      if (!atLeastOne) {
+        document.getElementById('table-container').innerHTML =
+          '<p class="text-center">Seleccione al menos un filtro para consultar la información.</p>';
+        return;
+      }
+      renderTable(filteredData);
+    }
+    
+    document.getElementById('filterForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      filterData();
+    });
+    
+    window.onload = loadJSONData;
+  </script>
+  <!-- Select2 JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+<script>
+  $(document).ready(function() {
+    $('select').select2({
+      placeholder: "Seleccione...",
+      allowClear: true,
+      width: 'resolve'
+    });
+  });
+</script>
+</body>
+</html>
